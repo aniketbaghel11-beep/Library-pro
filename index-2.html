@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Library Manager</title>
+<style>
+:root{--p:#4f46e5;--bg:#f3f4f8;--card:#fff;--tx:#1f2937;--mu:#6b7280;--ok:#16a34a;--bad:#dc2626;--wa:#d97706;--bd:#e5e7eb}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:76px}
+header{background:var(--p);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:10px;padding:8px 11px;font-size:14px}
+main{padding:12px;max-width:760px;margin:auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat small{color:var(--mu);display:block;font-size:12px}
+.stat b{font-size:20px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.wa{color:var(--wa)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;border:0;background:none;padding:9px 2px;font-size:11px;color:var(--mu)}
+nav button span{display:block;font-size:20px}
+nav button.on{color:var(--p);font-weight:700}
+input,select{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;font-size:16px;margin:4px 0 10px;background:#fff}
+label{font-size:13px;color:var(--mu)}
+.btn{background:var(--p);color:#fff;border:0;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:600}
+.btn.sm{padding:7px 12px;font-size:13px}
+.btn.g{background:#eef2ff;color:var(--p)}
+.btn.r{background:#fee2e2;color:var(--bad)}
+.btn.block{width:100%}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border:0}
+.row .l{min-width:0;flex:1}.row .l b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .l small{color:var(--mu)}
+.seats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.seat{border:1px solid var(--bd);border-radius:10px;padding:6px 2px;text-align:center;background:#f0fdf4;font-size:11px;min-height:50px;overflow:hidden}
+.seat b{display:block;font-size:14px}
+.seat.t{background:#fee2e2;border-color:#fecaca}
+.seat span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.mnav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px}
+.mnav button{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:8px 14px;font-size:16px}
+.mnav b{min-width:140px;text-align:center}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
+#modal.show{display:flex}
+#modal .sheet{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px;max-height:92vh;overflow:auto}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;display:none;z-index:30;max-width:90%}
+.auth{max-width:400px;margin:40px auto;padding:0 16px}
+.auth h2{text-align:center;color:var(--p);margin-bottom:4px}
+.tabs{display:flex;gap:6px;margin:14px 0}
+.tabs button{flex:1;padding:10px;border:1px solid var(--bd);background:#fff;border-radius:10px;font-size:15px}
+.tabs button.on{background:var(--p);color:#fff;border-color:var(--p)}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:#eef2ff;color:var(--p)}
+.tag.ok{background:#dcfce7;color:var(--ok)}.tag.bad{background:#fee2e2;color:var(--bad)}
+h3{margin:2px 0 10px;font-size:16px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,doc,setDoc,addDoc,deleteDoc,updateDoc,onSnapshot} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ====== YAHAN APNI FIREBASE CONFIG PASTE KARO ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDeESAvGcrDkHo4giZV8WW7F56KcnDKPnc",
+  authDomain: "library-pro-793f3.firebaseapp.com",
+  projectId: "library-pro-793f3",
+  storageBucket: "library-pro-793f3.firebasestorage.app",
+  messagingSenderId: "365862643315",
+  appId: "1:365862643315:web:edfda9da55c3811258ac06"
+};
+/* =================================================== */
+
+const configured = firebaseConfig.apiKey !== "PASTE_API_KEY";
+let app, auth, db;
+if (configured) { app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); }
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const fresh = () => ({settings: {name: 'My Library', seats: 100}, students: [], payments: [], expenses: []});
+
+let user = null, S = fresh(), tab = 'home', month = today().slice(0, 7), authMode = 'login', unsubs = [], q = '';
+
+function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
+function mLabel(m) { const [y, mo] = m.split('-'); return new Date(y, mo - 1, 1).toLocaleDateString('en-IN', {month: 'long', year: 'numeric'}); }
+function shift(d) { const [y, m] = month.split('-').map(Number); const dt = new Date(y, m - 1 + d, 1); month = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0'); render(); }
+const col = n => collection(db, 'users', user.uid, n);
+const sref = () => doc(db, 'users', user.uid, 'meta', 'settings');
+
+/* ---------- AUTH ---------- */
+if (configured) onAuthStateChanged(auth, u => {
+  unsubs.forEach(f => f()); unsubs = []; user = u; S = fresh();
+  if (u) {
+    unsubs.push(onSnapshot(sref(), d => { if (d.exists()) S.settings = {...S.settings, ...d.data()}; render(); }));
+    for (const n of ['students', 'payments', 'expenses'])
+      unsubs.push(onSnapshot(col(n), s => { S[n] = s.docs.map(d => ({id: d.id, ...d.data()})); render(); }, e => toast('Data error: ' + e.code)));
+  }
+  render();
+});
+
+const authErr = e => ({
+  'auth/invalid-credential': 'Email ya password galat hai',
+  'auth/wrong-password': 'Password galat hai',
+  'auth/user-not-found': 'Is email ka account nahi hai',
+  'auth/email-already-in-use': 'Ye email pehle se registered hai, login karo',
+  'auth/weak-password': 'Password kam se kam 6 akshar ka rakho',
+  'auth/invalid-email': 'Email sahi nahi hai',
+  'auth/too-many-requests': 'Bahut koshish ho gayi, thodi der baad try karo',
+  'auth/network-request-failed': 'Internet check karo'
+}[e.code] || e.message);
+
+window.setAuth = m => { authMode = m; render(); };
+window.doAuth = async () => {
+  const email = $('#em').value.trim(), pw = $('#pw').value;
+  if (!email || !pw) return toast('Email aur password daalo');
+  try {
+    if (authMode === 'signup') {
+      const name = $('#ln').value.trim() || 'My Library';
+      const c = await createUserWithEmailAndPassword(auth, email, pw);
+      await setDoc(doc(db, 'users', c.user.uid, 'meta', 'settings'), {name, seats: 100, email});
+    } else await signInWithEmailAndPassword(auth, email, pw);
+  } catch (e) { toast(authErr(e)); }
+};
+window.forgot = async () => {
+  const email = $('#em').value.trim();
+  if (!email) return toast('Pehle email likho');
+  try { await sendPasswordResetEmail(auth, email); toast('Reset link email par bhej diya'); } catch (e) { toast(authErr(e)); }
+};
+window.logout = async () => { if (confirm('Logout karna hai?')) { closeM(); await signOut(auth); } };
+
+/* ---------- HELPERS ---------- */
+const paidFor = (sid, m) => S.payments.filter(p => p.studentId === sid && p.month === m).reduce((a, p) => a + Number(p.amount), 0);
+const dueList = m => S.students.filter(s => (s.joinDate || '0000').slice(0, 7) <= m);
+const expMonth = e => e.status === 'paid' ? (e.paidDate || e.date).slice(0, 7) : e.date.slice(0, 7);
+function seatMap() { const m = {}; S.students.forEach(s => { if (s.type === 'reserved' && s.seat) m[s.seat] = s; }); return m; }
+function stats(m) {
+  const income = S.payments.filter(p => p.month === m).reduce((a, p) => a + Number(p.amount), 0);
+  const exp = S.expenses.filter(e => e.status === 'paid' && expMonth(e) === m).reduce((a, e) => a + Number(e.amount), 0);
+  let pend = 0, pendN = 0;
+  dueList(m).forEach(s => { const d = Number(s.fee || 0) - paidFor(s.id, m); if (d > 0) { pend += d; pendN++; } });
+  const pe = S.expenses.filter(e => e.status === 'pending');
+  return {income, exp, profit: income - exp, pend, pendN, pendExp: pe.reduce((a, e) => a + Number(e.amount), 0), pendExpN: pe.length};
+}
+const monthNav = () => `<div class="mnav"><button onclick="shift(-1)">◀</button><b>${mLabel(month)}</b><button onclick="shift(1)">▶</button></div>`;
+window.shift = shift;
+window.go = t => { tab = t; q = ''; render(); window.scrollTo(0, 0); };
+
+/* ---------- VIEWS ---------- */
+function vHome() {
+  const st = stats(month), seats = Number(S.settings.seats || 100), sm = seatMap();
+  const occ = Object.keys(sm).filter(k => k <= seats).length, unres = S.students.filter(s => s.type !== 'reserved').length;
+  return monthNav() + `
+  <div class="grid2">
+    <div class="stat"><small>Total seat</small><b>${seats}</b></div>
+    <div class="stat"><small>Reserved bhari</small><b>${occ}</b></div>
+    <div class="stat"><small>Khali seat</small><b class="ok">${seats - occ}</b></div>
+    <div class="stat"><small>Unreserved student</small><b>${unres}</b></div>
+    <div class="stat"><small>Is mahine ki aay</small><b class="ok">${inr(st.income)}</b></div>
+    <div class="stat"><small>Kharcha (diya hua)</small><b class="bad">${inr(st.exp)}</b></div>
+  </div>
+  <div class="card" style="margin-top:12px;text-align:center">
+    <small style="color:var(--mu)">${st.profit >= 0 ? 'Is mahine ka Profit' : 'Is mahine ka Loss'}</small>
+    <div style="font-size:30px;font-weight:800" class="${st.profit >= 0 ? 'ok' : 'bad'}">${inr(Math.abs(st.profit))}</div>
+  </div>
+  <div class="card"><div class="row"><div class="l"><b>Fees pending (${st.pendN} student)</b></div><b class="wa">${inr(st.pend)}</b></div>
+  <div class="row"><div class="l"><b>Kharcha baaki (${st.pendExpN})</b></div><b class="wa">${inr(st.pendExp)}</b></div></div>`;
+}
+
+function vSeats() {
+  const seats = Number(S.settings.seats || 100), sm = seatMap();
+  let h = '<div class="card"><h3>Seats (🟩 khali · 🟥 bhari)</h3><div class="seats">';
+  for (let i = 1; i <= seats; i++) {
+    const s = sm[i];
+    h += s ? `<div class="seat t" onclick="studentForm('${s.id}')"><b>${i}</b><span>${esc(s.name)}</span></div>`
+           : `<div class="seat" onclick="studentForm('', ${i})"><b>${i}</b><span>khali</span></div>`;
+  }
+  h += '</div></div>';
+  const un = S.students.filter(s => s.type !== 'reserved');
+  h += `<div class="card"><h3>Bina seat wale (unreserved) — ${un.length}</h3>` +
+    (un.map(s => `<div class="row" onclick="studentForm('${s.id}')"><div class="l"><b>${esc(s.name)}</b><small>${esc(s.phone || '')}</small></div><span class="tag">${inr(s.fee)}/mahina</span></div>`).join('') || '<small>Koi nahi</small>') + '</div>';
+  return h;
+}
+
+function vStudents() {
+  const l = S.students.filter(s => (s.name + (s.phone || '')).toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+  return `<button class="btn block" onclick="studentForm('')">+ Naya student</button>
+  <input style="margin-top:12px" placeholder="Naam ya phone se khojo" value="${esc(q)}" oninput="q=this.value;window.rs()">
+  <div class="card">${l.map(s => `<div class="row" onclick="studentForm('${s.id}')"><div class="l"><b>${esc(s.name)}</b><small>${esc(s.phone || '')} · ${s.type === 'reserved' ? 'Seat ' + s.seat : 'Unreserved'}</small></div><span class="tag">${inr(s.fee)}</span></div>`).join('') || '<small>Koi student nahi</small>'}</div>`;
+}
+window.rs = () => { const el = document.activeElement, pos = el.selectionStart; render(); const i = document.querySelector('main input'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } };
+Object.defineProperty(window, 'q', {get: () => q, set: v => q = v});
+
+function vFees() {
+  const l = dueList(month).map(s => ({s, paid: paidFor(s.id, month), due: Number(s.fee || 0) - paidFor(s.id, month)})).sort((a, b) => b.due - a.due);
+  const pays = S.payments.filter(p => p.month === month).sort((a, b) => b.date.localeCompare(a.date));
+  const nm = id => (S.students.find(s => s.id === id) || {name: '(hata diya)'}).name;
+  return monthNav() + `<div class="card"><h3>Fees</h3>${l.map(({s, paid, due}) => `<div class="row"><div class="l"><b>${esc(s.name)}</b><small>Mila ${inr(paid)} / ${inr(s.fee)}</small></div>
+    ${due > 0 ? `<button class="btn sm" onclick="collect('${s.id}',${due})">Fee lo ${inr(due)}</button>` : '<span class="tag ok">Paid ✓</span>'}</div>`).join('') || '<small>Koi student nahi</small>'}</div>
+  <div class="card"><h3>Is mahine ki payments</h3>${pays.map(p => `<div class="row"><div class="l"><b>${esc(nm(p.studentId))}</b><small>${p.date}</small></div><b class="ok">${inr(p.amount)}</b><button class="btn sm r" onclick="delPay('${p.id}')">✕</button></div>`).join('') || '<small>Abhi koi payment nahi</small>'}</div>`;
+}
+
+function vExp() {
+  const pend = S.expenses.filter(e => e.status === 'pending').sort((a, b) => a.date.localeCompare(b.date));
+  const list = S.expenses.filter(e => e.date.slice(0, 7) === month || (e.status === 'paid' && expMonth(e) === month)).sort((a, b) => b.date.localeCompare(a.date));
+  return `<div class="card"><h3>Naya kharcha</h3>
+    <label>Kya kharcha (jaise paani, bijli)</label><input id="et">
+    <label>Rakam ₹</label><input id="ea" type="number" inputmode="numeric">
+    <label>Date</label><input id="ed" type="date" value="${today()}">
+    <label>Status</label><select id="es"><option value="paid">Paid (de diya)</option><option value="pending">Pending (dena baaki hai)</option></select>
+    <button class="btn block" onclick="addExp()">Save</button></div>
+  <div class="card"><h3>⏳ Pending payments (${pend.length})</h3>${pend.map(e => `<div class="row"><div class="l"><b>${esc(e.title)}</b><small>${e.date}</small></div><b class="wa">${inr(e.amount)}</b><button class="btn sm" onclick="payExp('${e.id}')">Paid</button></div>`).join('') || '<small>Kuch baaki nahi 🎉</small>'}</div>
+  ${monthNav()}
+  <div class="card"><h3>${mLabel(month)} ka kharcha</h3>${list.map(e => `<div class="row"><div class="l"><b>${esc(e.title)}</b><small>${e.date} · ${e.status === 'paid' ? 'Paid' : 'Pending'}</small></div><b class="bad">${inr(e.amount)}</b><button class="btn sm r" onclick="delExp('${e.id}')">✕</button></div>`).join('') || '<small>Koi kharcha nahi</small>'}</div>`;
+}
+
+function render() {
+  const app = $('#app');
+  if (!configured) { app.innerHTML = `<div class="auth"><h2>⚙️ Setup baaki hai</h2><div class="card">index.html ke upar <b>firebaseConfig</b> me apni Firebase details paste karo.</div></div>`; return; }
+  if (!user) {
+    app.innerHTML = `<div class="auth"><h2>📚 Library Manager</h2><p style="text-align:center;color:var(--mu);margin-top:0">Apni library ka hisaab, ek jagah</p>
+    <div class="tabs"><button class="${authMode === 'login' ? 'on' : ''}" onclick="setAuth('login')">Login</button><button class="${authMode === 'signup' ? 'on' : ''}" onclick="setAuth('signup')">Naya account</button></div>
+    <div class="card">${authMode === 'signup' ? '<label>Library ka naam</label><input id="ln" placeholder="Jaise: Sharma Library">' : ''}
+    <label>Email</label><input id="em" type="email" autocomplete="email">
+    <label>Password</label><input id="pw" type="password" autocomplete="${authMode === 'login' ? 'current-password' : 'new-password'}" onkeydown="if(event.key==='Enter')doAuth()">
+    <button class="btn block" onclick="doAuth()">${authMode === 'login' ? 'Login' : 'Account banao'}</button>
+    ${authMode === 'login' ? '<p style="text-align:center"><a href="#" onclick="forgot();return false">Password bhool gaye?</a></p>' : ''}</div></div>`;
+    return;
+  }
+  const T = [['home', '🏠', 'Home'], ['seats', '💺', 'Seats'], ['students', '👥', 'Students'], ['fees', '💰', 'Fees'], ['exp', '🧾', 'Kharcha']];
+  const v = {home: vHome, seats: vSeats, students: vStudents, fees: vFees, exp: vExp}[tab]();
+  const focusId = document.activeElement && document.activeElement.id;
+  app.innerHTML = `<header><h1>📚 ${esc(S.settings.name)}</h1><button onclick="settings()">⚙️</button><button onclick="logout()">Logout</button></header>
+  <main>${v}</main><nav>${T.map(([k, i, n]) => `<button class="${tab === k ? 'on' : ''}" onclick="go('${k}')"><span>${i}</span>${n}</button>`).join('')}</nav>`;
+}
+window.render = render;
+
+/* ---------- MODAL ---------- */
+const openM = h => { const m = $('#modal'); m.innerHTML = `<div class="sheet">${h}</div>`; m.classList.add('show'); };
+window.closeM = () => $('#modal').classList.remove('show');
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM(); });
+
+window.studentForm = (id, seat) => {
+  const s = S.students.find(x => x.id === id) || {type: seat ? 'reserved' : 'unreserved', seat: seat || '', joinDate: today()};
+  const sm = seatMap(), total = Number(S.settings.seats || 100);
+  let opts = '<option value="">-- seat chuno --</option>';
+  for (let i = 1; i <= total; i++) if (!sm[i] || sm[i].id === id) opts += `<option value="${i}" ${Number(s.seat) === i ? 'selected' : ''}>Seat ${i}</option>`;
+  openM(`<h3>${id ? 'Student badlo' : 'Naya student'}</h3>
+  <label>Naam</label><input id="sn" value="${esc(s.name)}">
+  <label>Phone</label><input id="sp" type="tel" value="${esc(s.phone)}">
+  <label>Type</label><select id="st" onchange="document.getElementById('sw').style.display=this.value==='reserved'?'block':'none'"><option value="reserved" ${s.type === 'reserved' ? 'selected' : ''}>Reserved (fix seat)</option><option value="unreserved" ${s.type !== 'reserved' ? 'selected' : ''}>Unreserved</option></select>
+  <div id="sw" style="display:${s.type === 'reserved' ? 'block' : 'none'}"><label>Seat number</label><select id="ss">${opts}</select></div>
+  <label>Mahine ki fees ₹</label><input id="sf" type="number" inputmode="numeric" value="${esc(s.fee)}">
+  <label>Join date</label><input id="sj" type="date" value="${esc(s.joinDate)}">
+  <div style="display:flex;gap:8px"><button class="btn" style="flex:1" onclick="saveStudent('${id}')">Save</button>${id ? `<button class="btn r" onclick="delStudent('${id}')">Delete</button>` : ''}<button class="btn g" onclick="closeM()">Band</button></div>`);
+};
+window.saveStudent = async id => {
+  const name = $('#sn').value.trim(), type = $('#st').value, seat = type === 'reserved' ? Number($('#ss').value) : '';
+  if (!name) return toast('Naam likho');
+  if (type === 'reserved' && !seat) return toast('Seat chuno');
+  const d = {name, phone: $('#sp').value.trim(), type, seat, fee: Number($('#sf').value || 0), joinDate: $('#sj').value || today()};
+  try { id ? await updateDoc(doc(db, 'users', user.uid, 'students', id), d) : await addDoc(col('students'), d); closeM(); toast('Save ho gaya'); } catch (e) { toast(e.code || e.message); }
+};
+window.delStudent = async id => { if (confirm('Is student ko delete karna hai?')) { await deleteDoc(doc(db, 'users', user.uid, 'students', id)); closeM(); } };
+
+window.collect = (sid, due) => {
+  const s = S.students.find(x => x.id === sid);
+  openM(`<h3>${esc(s.name)} — fee</h3><label>Rakam ₹</label><input id="pa" type="number" inputmode="numeric" value="${due}">
+  <div style="display:flex;gap:8px"><button class="btn" style="flex:1" onclick="savePay('${sid}')">Fee lo</button><button class="btn g" onclick="closeM()">Band</button></div>`);
+};
+window.savePay = async sid => {
+  const a = Number($('#pa').value);
+  if (!(a > 0)) return toast('Sahi rakam likho');
+  try { await addDoc(col('payments'), {studentId: sid, amount: a, month, date: today()}); closeM(); toast('Fee mil gayi ✓'); } catch (e) { toast(e.code); }
+};
+window.delPay = async id => { if (confirm('Ye payment hatani hai?')) await deleteDoc(doc(db, 'users', user.uid, 'payments', id)); };
+
+window.addExp = async () => {
+  const title = $('#et').value.trim(), amount = Number($('#ea').value), date = $('#ed').value || today(), status = $('#es').value;
+  if (!title || !(amount > 0)) return toast('Naam aur rakam daalo');
+  try { await addDoc(col('expenses'), {title, amount, date, status, ...(status === 'paid' ? {paidDate: date} : {})}); toast('Save ho gaya'); $('#et').value = ''; $('#ea').value = ''; } catch (e) { toast(e.code); }
+};
+window.payExp = async id => { await updateDoc(doc(db, 'users', user.uid, 'expenses', id), {status: 'paid', paidDate: today()}); toast('Paid mark ho gaya'); };
+window.delExp = async id => { if (confirm('Ye kharcha hatana hai?')) await deleteDoc(doc(db, 'users', user.uid, 'expenses', id)); };
+
+window.settings = () => openM(`<h3>Settings</h3><small style="color:var(--mu)">Login: ${esc(user.email)}</small>
+  <label style="display:block;margin-top:10px">Library ka naam</label><input id="sl" value="${esc(S.settings.name)}">
+  <label>Total seats</label><input id="sc" type="number" inputmode="numeric" value="${esc(S.settings.seats || 100)}">
+  <div style="display:flex;gap:8px"><button class="btn" style="flex:1" onclick="saveSet()">Save</button><button class="btn r" onclick="logout()">Logout</button><button class="btn g" onclick="closeM()">Band</button></div>`);
+window.saveSet = async () => {
+  const name = $('#sl').value.trim() || 'My Library', seats = Math.max(1, Math.min(1000, Number($('#sc').value) || 100));
+  await setDoc(sref(), {name, seats}, {merge: true}); closeM(); toast('Save ho gaya');
+};
+
+render();
+if ('serviceWorker' in navigator) {}
+</script>
+</body>
+</html>
